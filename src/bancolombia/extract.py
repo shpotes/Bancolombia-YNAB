@@ -5,9 +5,17 @@ import re
 from bs4 import BeautifulSoup
 
 INFO_REGEX = re.compile(
-    r"Bancolombia le informa (?P<tt>\w+) por \$(?P<amount>(\d|\.|,)+) en (?P<venue>.+) (?P<date>\d\d:\d\d. \d\d/\d\d/\d{4}) (?P<pm>.*). I",  # noqa: E501
+    r"Bancolombia (le|te) informa (?P<tt>\w+) por \$(?P<amount>(\d|\.|,)+) en (?P<venue>.+) (?P<date>\d\d:\d\d. \d\d/\d\d/\d{4}) (?P<pm>.*). I",  # noqa: E501
 )
 
+
+def preprocess_text(text: str) -> str:
+    return (
+        text
+        .strip()
+        .replace("=\n=3D\n", "")
+        .replace("=3D\n", "")
+    )
 
 @dataclass
 class Transaction:
@@ -32,9 +40,9 @@ class Transaction:
 
 
 def extract_transactions_from_soup(soup: BeautifulSoup) -> Transaction:
-    for line in soup.text.split("\t"):
-        if not line:
-            continue
+    for text in soup.text.split("\t"):
+        text = preprocess_text(text)
+        if "Bancolombia le informa" in text or "Bancolombia te informa" in text:
+            return Transaction.from_text(text)
 
-        if "Bancolombia le informa" in line:
-            return Transaction.from_text(line)
+    raise ValueError("No transactions found")
